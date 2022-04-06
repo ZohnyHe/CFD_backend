@@ -1,0 +1,71 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2012                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      alphat;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 2 -1 0 0 0 0];
+
+internalField   uniform 0;	//2.3039e-5
+
+boundaryField
+{	
+	AC_inlet
+    {
+        type            fixedValue;
+		value			$internalField;
+    }
+	AC_outlet
+    {
+        type            zeroGradient;
+    }
+	wall
+    {
+        type            alphatJayatillekeWallFunction;
+        Prt             0.71;
+        value           $internalField;
+    }
+    Door_1
+    {
+        type            fixedValue;
+		value			$internalField;
+    }
+    Door_2
+    {
+        type            zeroGradient;
+    }
+    Door_3
+    {
+        type            zeroGradient;
+    }
+    Windows
+    {
+        type            zeroGradient;
+    }
+    COM_inlet_+Z
+    {
+        type            alphatJayatillekeWallFunction;
+        Prt             0.71;
+        value           $internalField;
+    }
+    COM_inlet_-Z
+    {
+        type            alphatJayatillekeWallFunction;
+        Prt             0.71;
+        value           $internalField;
+    }
+}
+
+
+// ************************************************************************* //
