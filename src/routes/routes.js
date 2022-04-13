@@ -9,9 +9,7 @@ const { createTimeStepArrayFromDataFolder, readTemperatureArrayFromTimeFolder,
         readCarbonDioxideArrayFromTimeFolder } = require('../utils')
 
 const srcFolderPath = './CFD_outputData/'
-const { 
-    CaseData, OutputData, ConstData
-            } = require('../../models');
+const { CaseData, OutputData, ConstData } = require('../../models');
 
 
 router.post('/data', express.json(), async(req, res) => {
@@ -100,7 +98,8 @@ router.post('/data', express.json(), async(req, res) => {
     }
 })
 
-router.get('/userInfo/:userName', express.json(), async(req, res) => {
+
+router.get('/:userName/userInfo', express.json(), async(req, res) => {
     try {
         const caseData = await CaseData.findAll({
             where: { userName: req.params.userName } })
@@ -121,7 +120,7 @@ router.get('/userInfo/:userName', express.json(), async(req, res) => {
 })
 
 
-router.get('/timeSteps/:userName/:caseName', async(req, res) => {
+router.get('/:userName/:caseName/timeSteps', async(req, res) => {
     try {
         const caseData = await CaseData.findOne({
             where: { userName: req.params.userName, caseName: req.params.caseName } })
@@ -146,7 +145,7 @@ router.get('/timeSteps/:userName/:caseName', async(req, res) => {
 })
 
 
-router.get('/attributes/:userName/:caseName', async(req, res) => {
+router.get('/:userName/:caseName/attributes', async(req, res) => {
     try {
         const caseData = await CaseData.findOne({
             where: { userName: req.params.userName, caseName: req.params.caseName } })
@@ -174,7 +173,44 @@ router.get('/attributes/:userName/:caseName', async(req, res) => {
 })
 
 
-router.get('/constData/:userName/:caseName', async(req, res) => {
+router.get('/:userName/:caseName/timeAndAttributes/', async(req, res) => {
+    try {
+        const caseData = await CaseData.findOne({
+            where: { userName: req.params.userName, caseName: req.params.caseName } })
+        if(!isNaN(caseData)) {
+            return res.json({ message: `Can't find data: ${req.params.userName}`})
+        } else {
+            const timeData = await OutputData.findAll({
+                where: { caseId: caseData.caseId },
+                attributes: ['timeStep']
+            })
+            const timeStepLength = timeData.length
+            const TimeStep = []
+            for(let timeIndex = 0; timeIndex < timeStepLength; timeIndex++){
+                TimeStep.push(Number(timeData[timeIndex].timeStep))
+            }
+            const idRegex = /Id/
+            const AtRegex = /At/
+            const rawAttributes = await OutputData.rawAttributes
+            const Attributes = []
+            const attributeData = await OutputData.findOne({
+                where: { caseId: caseData.caseId },
+            })
+            for(let key in rawAttributes) {
+                if(isNaN(attributeData[key]) && !idRegex.test(key) && !AtRegex.test(key)) {
+                    Attributes.push(key)
+                }
+            }
+            return res.json({ TimeStep, Attributes })
+        }
+    } catch (err) {
+        console.log(err)
+        return res.status(500).json({ error: `Something went wrong`})
+    }
+})
+
+
+router.get('/:userName/:caseName/constData', async(req, res) => {
     try {
         const caseName = await CaseData.findOne({
             where: { userName: req.params.userName, caseName: req.params.caseName } })
@@ -194,10 +230,10 @@ router.get('/constData/:userName/:caseName', async(req, res) => {
 })
 
 
-router.get('/outputData/', express.json(), async(req, res) => {   
+router.get('/:userName/:caseName/outputData', express.json(), async(req, res) => {   
     try {
         const caseData = await CaseData.findOne({
-            where: { userName: req.query.userName, caseName: req.query.caseName } })
+            where: { userName: req.params.userName, caseName: req.params.caseName } })
         if(!isNaN(caseData)) {
             return res.json({ message: `Can't find data: ${req.params.userName}`})
         } else {
@@ -224,7 +260,6 @@ router.get('/outputData/', express.json(), async(req, res) => {
                         showingAttributes.push(Attributes[index])
                     }
                 }
-
                 if (isNaN(timeIndex) && isNaN(req.query.timeStart) && isNaN(req.query.timeEnd)) {
                     const outputData = await OutputData.findAll({
                         where: { caseId: caseData.caseId },
@@ -232,8 +267,8 @@ router.get('/outputData/', express.json(), async(req, res) => {
                     })
                 return res.json(outputData)
                 } else if (isNaN(timeIndex) && !isNaN(req.query.timeStart) && !isNaN(req.query.timeEnd)) {
-                    let firstTimeIndex = req.query.timeStart
-                    let lastTimeIndex = req.query.timeEnd
+                    const firstTimeIndex = req.query.timeStart
+                    const lastTimeIndex = req.query.timeEnd
                     if (lastTimeIndex-firstTimeIndex <= 0) {
                         return res.json(`Time range error!`)
                     } else {
@@ -247,6 +282,43 @@ router.get('/outputData/', express.json(), async(req, res) => {
                         }
                         return res.json(returnData)
                     }
+                } else if (isNaN(timeIndex) && !isNaN(req.query.timeStart) && isNaN(req.query.timeEnd)) {
+                    const outputData = await OutputData.findAll({
+                        where: { caseId: caseData.caseId },
+                        attributes: ['timeStep']
+                    })
+                    const firstTimeIndex = req.query.timeStart
+                    const lastTimeIndex = outputData.length
+                    if (lastTimeIndex-firstTimeIndex <= 0) {
+                        return res.json(`Time range error!`)
+                    } else {
+                        const outputData = await OutputData.findAll({
+                            where: { caseId: caseData.caseId },
+                            attributes: showingAttributes,
+                        })
+                        const returnData = {}
+                        for(let timeIndex = firstTimeIndex; timeIndex <= lastTimeIndex; timeIndex++){
+                            returnData[timeIndex] = outputData[timeIndex]
+                        }
+                        return res.json(returnData)
+                    }
+                } else if (isNaN(timeIndex) && isNaN(req.query.timeStart) && !isNaN(req.query.timeEnd)) {
+                    const firstTimeIndex = 0
+                    const lastTimeIndex = req.query.timeEnd
+                    if (lastTimeIndex-firstTimeIndex <= 0) {
+                        return res.json(`Time range error!`)
+                    } else {
+                        const outputData = await OutputData.findAll({
+                            where: { caseId: caseData.caseId },
+                            attributes: showingAttributes,
+                        })
+                        const returnData = {}
+                        for(let timeIndex = firstTimeIndex; timeIndex <= lastTimeIndex; timeIndex++){
+                            returnData[timeIndex] = outputData[timeIndex]
+                        }
+                        return res.json(returnData)
+                    }
+
                 } else {
                     const outputData = await OutputData.findAll({
                         where: { caseId: caseData.caseId },

@@ -20,8 +20,9 @@ const routes = require('../src/routes/routes')
 app.use('/routes', routes)
 
 
-app.listen({ port: 8000 }, async () => {
-    console.log(`Server up on http://localhost:8000`)
+const port = 8000
+app.listen({ port: port }, async () => {
+    console.log(`Server up on http://localhost:${port}`)
     await sequelize.authenticate()
     // await sequelize.sync({ force: true })
     console.log(`Database connected!`)
